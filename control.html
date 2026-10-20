@@ -1,0 +1,321 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Basketball Scoreboard Controller</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: #0f172a;
+    color: white; font-family: system-ui, sans-serif;
+    max-width: 850px; margin-inline: auto;
+  }
+  h1, h2 { text-align: center; }
+  h1 { font-size: 26px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card, .panel {
+    background: #1e293b; padding: 20px; border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  .team { text-align: center; }
+  input {
+    width: 100%; padding: 10px; border-radius: 6px;
+    border: 1px solid #475569; background: #0f172a;
+    color: white; font-size: 16px; margin: 6px 0 12px;
+  }
+  button {
+    border: 0; border-radius: 7px; padding: 11px 14px;
+    background: #2563eb; color: white; font-weight: bold;
+    font-size: 15px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .red { background: #dc2626; }
+  .gray { background: #475569; }
+  .green { background: #16a34a; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .clock {
+    font-size: 48px; font-weight: 800; font-variant-numeric: tabular-nums;
+    text-align: center; margin: 8px 0 16px;
+  }
+  .status { text-align: center; color: #94a3b8; margin-bottom: 14px; }
+  .period { text-align: center; font-size: 22px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row input { flex: 1; min-width: 0; }
+  #message { text-align: center; color: #7dd3fc; min-height: 24px; }
+  @media(max-width: 520px) {
+    body { padding: 12px; }
+    .grid { gap: 8px; }
+    .card, .panel { padding: 12px; }
+    .clock { font-size: 40px; }
+    button { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+<h1>Scoreboard Controller</h1>
+<div id="connection" class="status">Connecting to Firebase...</div>
+
+<div class="grid">
+  <section class="card team">
+    <input id="homeName" value="HOME" aria-label="Home team name">
+    <h2 id="homeScore">0</h2>
+    <div class="buttons">
+      <button onclick="addScore('home',1)">+1</button>
+      <button onclick="addScore('home',2)">+2</button>
+      <button onclick="addScore('home',3)">+3</button>
+      <button class="red" onclick="addScore('home',-1)">−1</button>
+    </div>
+  </section>
+  <section class="card team">
+    <input id="awayName" value="AWAY" aria-label="Away team name">
+    <h2 id="awayScore">0</h2>
+    <div class="buttons">
+      <button onclick="addScore('away',1)">+1</button>
+      <button onclick="addScore('away',2)">+2</button>
+      <button onclick="addScore('away',3)">+3</button>
+      <button class="red" onclick="addScore('away',-1)">−1</button>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Game Clock</h2>
+  <div id="clock" class="clock">10:00</div>
+  <div id="clockStatus" class="status">PAUSED</div>
+  <div class="buttons">
+    <button id="startBtn" class="green" onclick="startClock()">▶ Start</button>
+    <button class="gray" onclick="pauseClock()">⏸ Pause</button>
+    <button class="red" onclick="resetClock()">↺ Reset Clock</button>
+  </div>
+  <div class="row" style="margin-top:18px">
+    <div style="flex:1">
+      <label for="minutes">Minutes</label>
+      <input id="minutes" type="number" min="0" max="99" value="10">
+    </div>
+    <div style="flex:1">
+      <label for="seconds">Seconds</label>
+      <input id="seconds" type="number" min="0" max="59" value="0">
+    </div>
+    <button onclick="setClock()">Set Time</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Period</h2>
+  <div id="period" class="period">Q1</div>
+  <div class="buttons">
+    <button class="gray" onclick="changePeriod(-1)">← Previous</button>
+    <button onclick="changePeriod(1)">Next →</button>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <input id="periodInput" value="Q1" aria-label="Custom period">
+    <button onclick="setPeriod()">Set Period</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Game Settings</h2>
+  <div class="buttons">
+    <button onclick="saveNames()">Save Team Names</button>
+    <button class="red" onclick="resetGame()">Reset Entire Game</button>
+  </div>
+</section>
+<div id="message"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDNRAxQjrJHaPygvWc2RvU0ING1OZ7Eya8",
+  authDomain: "basketball-scoreboard-aac31.firebaseapp.com",
+  databaseURL: "https://basketball-scoreboard-aac31-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "basketball-scoreboard-aac31",
+  storageBucket: "basketball-scoreboard-aac31.firebasestorage.app",
+  messagingSenderId: "419988352356",
+  appId: "1:419988352356:web:36ca2bdb06acc0eb9cde71"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ref = db.ref("scoreboard");
+
+let game = null;
+let busy = false;
+let lastShownSecond = -1;
+
+function defaultGame() {
+  return {
+    homeName: "HOME", homeScore: 0,
+    awayName: "AWAY", awayScore: 0,
+    period: "Q1",
+    clock: { remainingMs: 600000, running: false, startedAt: null }
+  };
+}
+
+function remainingMs(clock) {
+  if (!clock) return 600000;
+  const remaining = Number(clock.remainingMs ?? 600000);
+  if (!clock.running) return Math.max(0, remaining);
+  return Math.max(0, remaining - Math.max(0, Date.now() - Number(clock.startedAt)));
+}
+
+function formatTime(ms) {
+  const total = Math.ceil(Math.max(0, ms) / 1000);
+  return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0");
+}
+
+function render() {
+  if (!game) return;
+  document.getElementById("homeName").value = game.homeName || "HOME";
+  document.getElementById("awayName").value = game.awayName || "AWAY";
+  document.getElementById("homeScore").textContent = game.homeScore ?? 0;
+  document.getElementById("awayScore").textContent = game.awayScore ?? 0;
+  document.getElementById("period").textContent = game.period || "Q1";
+  document.getElementById("periodInput").value = game.period || "Q1";
+
+  const ms = remainingMs(game.clock);
+  document.getElementById("clock").textContent = formatTime(ms);
+  document.getElementById("clockStatus").textContent =
+    game.clock?.running && ms > 0 ? "RUNNING" : "PAUSED";
+  document.getElementById("startBtn").disabled =
+    !!game.clock?.running || ms <= 0;
+  document.getElementById("minutes").value = Math.floor(ms / 60000);
+  document.getElementById("seconds").value =
+    Math.floor((ms % 60000) / 1000);
+}
+
+ref.on("value", snapshot => {
+  game = snapshot.val();
+  if (!game) {
+    game = defaultGame();
+    ref.set(game);
+    return;
+  }
+  if (!game.clock || typeof game.clock !== "object") {
+    game.clock = defaultGame().clock;
+    ref.child("clock").set(game.clock);
+    return;
+  }
+  render();
+  document.getElementById("connection").textContent = "● Connected to Firebase";
+}, error => {
+  document.getElementById("connection").textContent = "Firebase error: " + error.message;
+});
+
+async function changeClock(transform) {
+  if (busy) return;
+  busy = true;
+  try {
+    await ref.child("clock").transaction(current => {
+      const c = current || defaultGame().clock;
+      return transform({
+        remainingMs: remainingMs(c),
+        running: !!c.running,
+        startedAt: c.startedAt
+      });
+    });
+  } catch (e) {
+    showMessage("Clock error: " + e.message);
+  } finally {
+    busy = false;
+  }
+}
+
+function startClock() {
+  return changeClock(c => {
+    if (c.remainingMs <= 0) return c;
+    return { remainingMs: c.remainingMs, running: true, startedAt: Date.now() };
+  });
+}
+
+function pauseClock() {
+  return changeClock(c => ({
+    remainingMs: c.remainingMs, running: false, startedAt: null
+  }));
+}
+
+function resetClock() {
+  const ms = Number(document.getElementById("minutes").value) * 60000 +
+             Number(document.getElementById("seconds").value) * 1000;
+  if (!Number.isFinite(ms) || ms < 0 || ms > 5999000) {
+    return showMessage("Enter a valid time.");
+  }
+  return changeClock(() => ({ remainingMs: ms, running: false, startedAt: null }));
+}
+
+function setClock() {
+  const min = Number(document.getElementById("minutes").value);
+  const sec = Number(document.getElementById("seconds").value);
+  if (!Number.isInteger(min) || min < 0 || min > 99 ||
+      !Number.isInteger(sec) || sec < 0 || sec > 59) {
+    return showMessage("Minutes must be 0–99; seconds must be 0–59.");
+  }
+  return changeClock(() => ({
+    remainingMs: min * 60000 + sec * 1000,
+    running: false, startedAt: null
+  }));
+}
+
+async function addScore(team, points) {
+  const scoreRef = ref.child(team + "Score");
+  try {
+    await scoreRef.transaction(n => Math.max(0, Number(n || 0) + points));
+  } catch (e) { showMessage(e.message); }
+}
+
+async function saveNames() {
+  try {
+    await ref.update({
+      homeName: document.getElementById("homeName").value.trim() || "HOME",
+      awayName: document.getElementById("awayName").value.trim() || "AWAY"
+    });
+    showMessage("Team names saved.");
+  } catch (e) { showMessage(e.message); }
+}
+
+async function setPeriod() {
+  const period = document.getElementById("periodInput").value.trim();
+  if (!period) return showMessage("Enter a period.");
+  try { await ref.child("period").set(period); }
+  catch (e) { showMessage(e.message); }
+}
+
+async function changePeriod(direction) {
+  const current = String(game?.period || "Q1");
+  const match = current.match(/^(.*?)(\d+)$/);
+  if (!match) return showMessage("Use a period such as Q1 to use Previous/Next.");
+  const number = Math.max(1, Number(match[2]) + direction);
+  document.getElementById("periodInput").value = match[1] + number;
+  await setPeriod();
+}
+
+async function resetGame() {
+  if (!confirm("Reset both scores, period, and clock to the start?")) return;
+  const fresh = defaultGame();
+  try {
+    await ref.set(fresh);
+    showMessage("Game reset.");
+  } catch (e) { showMessage(e.message); }
+}
+
+function showMessage(text) {
+  document.getElementById("message").textContent = text;
+}
+
+// Keep the controller display moving even without a Firebase update.
+setInterval(() => {
+  if (!game?.clock?.running) return;
+  const ms = remainingMs(game.clock);
+  const sec = Math.ceil(ms / 1000);
+  if (sec !== lastShownSecond) {
+    lastShownSecond = sec;
+    document.getElementById("clock").textContent = formatTime(ms);
+  }
+  if (ms <= 0) pauseClock();
+}, 100);
+</script>
+</body>
+</html>
