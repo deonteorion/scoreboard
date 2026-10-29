@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,22 +7,27 @@
 <style>
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 24px; background: #0f172a;
+    margin: 0; padding: 24px; background: #0b1020;
     color: white; font-family: system-ui, sans-serif;
-    max-width: 850px; margin-inline: auto;
+    max-width: 900px; margin-inline: auto;
   }
   h1, h2 { text-align: center; }
   h1 { font-size: 26px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card, .panel {
-    background: #1e293b; padding: 20px; border-radius: 12px;
-    margin-bottom: 16px;
+    background: #182238; padding: 20px; border-radius: 12px;
+    margin-bottom: 16px; border: 1px solid #29364d;
   }
   .team { text-align: center; }
-  input {
+  input:not([type="color"]) {
     width: 100%; padding: 10px; border-radius: 6px;
     border: 1px solid #475569; background: #0f172a;
     color: white; font-size: 16px; margin: 6px 0 12px;
+  }
+  input[type="color"] {
+    width: 48px; height: 38px; padding: 3px;
+    border: 1px solid #64748b; border-radius: 7px;
+    background: #0f172a; cursor: pointer;
   }
   button {
     border: 0; border-radius: 7px; padding: 11px 14px;
@@ -44,6 +48,12 @@
   .period { text-align: center; font-size: 22px; margin-bottom: 12px; }
   .row { display: flex; align-items: center; gap: 10px; }
   .row input { flex: 1; min-width: 0; }
+  .color-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin: 10px 0 4px; text-align: left;
+  }
+  .color-row label { font-size: 14px; color: #cbd5e1; }
+  .color-value { display: flex; align-items: center; gap: 8px; }
   #message { text-align: center; color: #7dd3fc; min-height: 24px; }
   @media(max-width: 520px) {
     body { padding: 12px; }
@@ -55,12 +65,12 @@
 </style>
 </head>
 <body>
-<h1>Scoreboard Controller</h1>
+<h1>Basketball Scoreboard Controller</h1>
 <div id="connection" class="status">Connecting to Firebase...</div>
 
 <div class="grid">
   <section class="card team">
-    <input id="homeName" value="HOME" aria-label="Home team name">
+    <input id="homeName" value="HOME" aria-label="Home team name" maxlength="24">
     <h2 id="homeScore">0</h2>
     <div class="buttons">
       <button onclick="addScore('home',1)">+1</button>
@@ -68,15 +78,30 @@
       <button onclick="addScore('home',3)">+3</button>
       <button class="red" onclick="addScore('home',-1)">−1</button>
     </div>
+    <div class="color-row">
+      <label for="homeColor">Home team color</label>
+      <div class="color-value">
+        <span id="homeColorValue">#006BB6</span>
+        <input id="homeColor" type="color" value="#006BB6" aria-label="Home team color">
+      </div>
+    </div>
   </section>
+
   <section class="card team">
-    <input id="awayName" value="AWAY" aria-label="Away team name">
+    <input id="awayName" value="AWAY" aria-label="Away team name" maxlength="24">
     <h2 id="awayScore">0</h2>
     <div class="buttons">
       <button onclick="addScore('away',1)">+1</button>
       <button onclick="addScore('away',2)">+2</button>
       <button onclick="addScore('away',3)">+3</button>
       <button class="red" onclick="addScore('away',-1)">−1</button>
+    </div>
+    <div class="color-row">
+      <label for="awayColor">Away team color</label>
+      <div class="color-value">
+        <span id="awayColorValue">#C8102E</span>
+        <input id="awayColor" type="color" value="#C8102E" aria-label="Away team color">
+      </div>
     </div>
   </section>
 </div>
@@ -119,9 +144,12 @@
 <section class="panel">
   <h2>Game Settings</h2>
   <div class="buttons">
-    <button onclick="saveNames()">Save Team Names</button>
+    <button onclick="saveNames()">Save Team Names & Colors</button>
     <button class="red" onclick="resetGame()">Reset Entire Game</button>
   </div>
+  <p style="text-align:center;color:#94a3b8;font-size:13px;margin-bottom:0">
+    Choose each team's color, then save to update the overlay.
+  </p>
 </section>
 <div id="message"></div>
 
@@ -129,7 +157,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyDNRAxQjrJHaPygvWc2RvU0ING1OZ7Eya8",
+  apiKey: "AIzaSyDNRAxQJHaPygvWc2RvU0ING1OZ7Eya8",
   authDomain: "basketball-scoreboard-aac31.firebaseapp.com",
   databaseURL: "https://basketball-scoreboard-aac31-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "basketball-scoreboard-aac31",
@@ -148,8 +176,8 @@ let lastShownSecond = -1;
 
 function defaultGame() {
   return {
-    homeName: "HOME", homeScore: 0,
-    awayName: "AWAY", awayScore: 0,
+    homeName: "HOME", homeScore: 0, homeColor: "#006BB6",
+    awayName: "AWAY", awayScore: 0, awayColor: "#C8102E",
     period: "Q1",
     clock: { remainingMs: 600000, running: false, startedAt: null }
   };
@@ -176,6 +204,13 @@ function render() {
   document.getElementById("period").textContent = game.period || "Q1";
   document.getElementById("periodInput").value = game.period || "Q1";
 
+  const homeColor = validColor(game.homeColor) ? game.homeColor : "#006BB6";
+  const awayColor = validColor(game.awayColor) ? game.awayColor : "#C8102E";
+  document.getElementById("homeColor").value = homeColor;
+  document.getElementById("awayColor").value = awayColor;
+  document.getElementById("homeColorValue").textContent = homeColor.toUpperCase();
+  document.getElementById("awayColorValue").textContent = awayColor.toUpperCase();
+
   const ms = remainingMs(game.clock);
   document.getElementById("clock").textContent = formatTime(ms);
   document.getElementById("clockStatus").textContent =
@@ -183,9 +218,19 @@ function render() {
   document.getElementById("startBtn").disabled =
     !!game.clock?.running || ms <= 0;
   document.getElementById("minutes").value = Math.floor(ms / 60000);
-  document.getElementById("seconds").value =
-    Math.floor((ms % 60000) / 1000);
+  document.getElementById("seconds").value = Math.floor((ms % 60000) / 1000);
 }
+
+function validColor(color) {
+  return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color);
+}
+
+document.getElementById("homeColor").addEventListener("input", event => {
+  document.getElementById("homeColorValue").textContent = event.target.value.toUpperCase();
+});
+document.getElementById("awayColor").addEventListener("input", event => {
+  document.getElementById("awayColorValue").textContent = event.target.value.toUpperCase();
+});
 
 ref.on("value", snapshot => {
   game = snapshot.val();
@@ -238,11 +283,13 @@ function pauseClock() {
 }
 
 function resetClock() {
-  const ms = Number(document.getElementById("minutes").value) * 60000 +
-             Number(document.getElementById("seconds").value) * 1000;
-  if (!Number.isFinite(ms) || ms < 0 || ms > 5999000) {
-    return showMessage("Enter a valid time.");
+  const min = Number(document.getElementById("minutes").value);
+  const sec = Number(document.getElementById("seconds").value);
+  if (!Number.isInteger(min) || min < 0 || min > 99 ||
+      !Number.isInteger(sec) || sec < 0 || sec > 59) {
+    return showMessage("Enter valid minutes (0–99) and seconds (0–59).");
   }
+  const ms = min * 60000 + sec * 1000;
   return changeClock(() => ({ remainingMs: ms, running: false, startedAt: null }));
 }
 
@@ -263,24 +310,35 @@ async function addScore(team, points) {
   const scoreRef = ref.child(team + "Score");
   try {
     await scoreRef.transaction(n => Math.max(0, Number(n || 0) + points));
-  } catch (e) { showMessage(e.message); }
+  } catch (e) {
+    showMessage(e.message);
+  }
 }
 
 async function saveNames() {
+  const homeColor = document.getElementById("homeColor").value;
+  const awayColor = document.getElementById("awayColor").value;
   try {
     await ref.update({
       homeName: document.getElementById("homeName").value.trim() || "HOME",
-      awayName: document.getElementById("awayName").value.trim() || "AWAY"
+      awayName: document.getElementById("awayName").value.trim() || "AWAY",
+      homeColor,
+      awayColor
     });
-    showMessage("Team names saved.");
-  } catch (e) { showMessage(e.message); }
+    showMessage("Team names and colors saved.");
+  } catch (e) {
+    showMessage("Could not save team settings: " + e.message);
+  }
 }
 
 async function setPeriod() {
   const period = document.getElementById("periodInput").value.trim();
   if (!period) return showMessage("Enter a period.");
-  try { await ref.child("period").set(period); }
-  catch (e) { showMessage(e.message); }
+  try {
+    await ref.child("period").set(period);
+  } catch (e) {
+    showMessage(e.message);
+  }
 }
 
 async function changePeriod(direction) {
@@ -293,19 +351,20 @@ async function changePeriod(direction) {
 }
 
 async function resetGame() {
-  if (!confirm("Reset both scores, period, and clock to the start?")) return;
+  if (!confirm("Reset both scores, period, and clock? Team colors will return to defaults.")) return;
   const fresh = defaultGame();
   try {
     await ref.set(fresh);
     showMessage("Game reset.");
-  } catch (e) { showMessage(e.message); }
+  } catch (e) {
+    showMessage(e.message);
+  }
 }
 
 function showMessage(text) {
   document.getElementById("message").textContent = text;
 }
 
-// Keep the controller display moving even without a Firebase update.
 setInterval(() => {
   if (!game?.clock?.running) return;
   const ms = remainingMs(game.clock);
