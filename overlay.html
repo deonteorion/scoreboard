@@ -5,72 +5,254 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Basketball Scoreboard Overlay</title>
+
 <style>
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 20px;
+  :root {
+    --home-color: #006BB6;
+    --away-color: #C8102E;
+    --center-color: #111318;
+    --text-color: #FFFFFF;
+    --muted-color: #A7AFBC;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
     background: transparent;
-    font-family: Arial, sans-serif;
-    color: white;
   }
+
+  body {
+    padding: 12px;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--text-color);
+  }
+
   .scorebug {
-    display: inline-flex; align-items: stretch;
-    background: rgba(15,23,42,.96);
-    border: 2px solid #334155; border-radius: 8px;
-    overflow: hidden; box-shadow: 0 4px 15px #0008;
+    display: inline-flex;
+    align-items: stretch;
+    max-width: 100%;
+    overflow: hidden;
+    border: 2px solid #343840;
+    border-radius: 9px;
+    background: var(--center-color);
+    box-shadow: 0 5px 18px rgba(0, 0, 0, .4);
   }
+
+  /* Team panels */
   .team {
-    display: flex; align-items: center; gap: 12px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    min-width: 230px;
     padding: 10px 16px;
+    overflow: hidden;
+    background: var(--team-dark);
+    border-top: 2px solid var(--team-color);
+    border-bottom: 2px solid var(--team-color);
   }
-  .team-name {
-    font-size: 20px; font-weight: 900;
-    text-transform: uppercase; letter-spacing: 1px;
+
+  .team.home {
+    --team-color: var(--home-color);
+    --team-dark: color-mix(in srgb, var(--team-color) 25%, #080B12);
+    border-left: 4px solid var(--team-color);
   }
+
+  .team.away {
+    --team-color: var(--away-color);
+    --team-dark: color-mix(in srgb, var(--team-color) 25%, #080B12);
+    border-right: 4px solid var(--team-color);
+    flex-direction: row-reverse;
+  }
+
+  /* Subtle team-color accent */
+  .team::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--team-color) 22%, transparent),
+      transparent 65%
+    );
+    pointer-events: none;
+  }
+
+  .team-content,
   .team-score {
-    min-width: 35px; text-align: center;
-    font-size: 30px; font-weight: 900; color: #facc15;
+    position: relative;
+    z-index: 1;
+    background: color-mix(in srgb, var(--team-color) 13%, #080A10);
+    border: 1px solid color-mix(
+      in srgb, var(--team-color) 30%, #20232B
+    );
+    border-radius: 4px;
   }
-  .divider { width: 2px; background: #475569; }
+
+  .team-content {
+    min-width: 100px;
+    padding: 7px 10px;
+    flex: 1;
+  }
+
+  .side-label {
+    margin-bottom: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: color-mix(in srgb, var(--team-color) 55%, white);
+  }
+
+  .team-name {
+    max-width: 155px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .team-score {
+    min-width: 65px;
+    padding: 7px 8px;
+    text-align: center;
+    font-size: 35px;
+    line-height: 1.1;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: #FFFFFF;
+  }
+
+  /* Center game information */
   .match-info {
-    min-width: 100px; padding: 8px 14px;
-    background: #1e293b; text-align: center;
-    display: flex; flex-direction: column; justify-content: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 112px;
+    padding: 8px 12px;
+    background: linear-gradient(180deg, #191B21, #0D0F13);
+    border-left: 1px solid #353840;
+    border-right: 1px solid #353840;
   }
-  .period { font-size: 14px; font-weight: bold; color: #38bdf8; }
+
   .clock {
-    font-family: monospace; font-size: 23px;
-    font-weight: 900; font-variant-numeric: tabular-nums;
+    font-family: "Courier New", monospace;
+    font-size: 26px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
-  .paused { color: #facc15; }
-  #error { color: #fca5a5; font: 12px Arial; }
+
+  .period {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #E1E5ED;
+  }
+
+  .clock-status {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #8C95A3;
+  }
+
+  .clock-status.live {
+    color: #53D68A;
+  }
+
+  .clock.paused {
+    color: #FACC15;
+  }
+
+  #error {
+    margin-top: 5px;
+    color: #FCA5A5;
+    font: 12px Arial, sans-serif;
+  }
+
+  @media (max-width: 600px) {
+    body {
+      padding: 4px;
+    }
+
+    .team {
+      min-width: 0;
+      gap: 6px;
+      padding: 6px;
+    }
+
+    .team-content {
+      min-width: 0;
+      padding: 5px;
+    }
+
+    .team-name {
+      max-width: 75px;
+      font-size: 12px;
+    }
+
+    .team-score {
+      min-width: 38px;
+      padding: 6px 3px;
+      font-size: 25px;
+    }
+
+    .match-info {
+      min-width: 76px;
+      padding: 5px;
+    }
+
+    .clock {
+      font-size: 19px;
+    }
+  }
 </style>
 </head>
+
 <body>
 <div class="scorebug">
-  <div class="team">
-    <span class="team-name" id="homeName">HOME</span>
-    <span class="team-score" id="homeScore">0</span>
+
+  <div class="team home">
+    <div class="team-content">
+      <div class="side-label">HOME</div>
+      <div class="team-name" id="homeName">HOME</div>
+    </div>
+    <div class="team-score" id="homeScore">0</div>
   </div>
-  <div class="divider"></div>
-  <div class="team">
-    <span class="team-score" id="awayScore">0</span>
-    <span class="team-name" id="awayName">AWAY</span>
-  </div>
-  <div class="divider"></div>
+
   <div class="match-info">
     <div class="period" id="period">Q1</div>
     <div class="clock" id="clock">10:00</div>
-    <div id="clockStatus" style="font-size:10px;color:#94a3b8">PAUSED</div>
+    <div class="clock-status" id="clockStatus">PAUSED</div>
   </div>
+
+  <div class="team away">
+    <div class="team-content">
+      <div class="side-label">AWAY</div>
+      <div class="team-name" id="awayName">AWAY</div>
+    </div>
+    <div class="team-score" id="awayScore">0</div>
+  </div>
+
 </div>
+
 <div id="error"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyDNRAxQjrJHaPygvWc2RvU0ING1OZ7Eya8",
+  apiKey: "AIzaSyDNAXQxJHaPygvWc2RvU0ING1OZ7Eya8",
   authDomain: "basketball-scoreboard-aac31.firebaseapp.com",
   databaseURL: "https://basketball-scoreboard-aac31-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "basketball-scoreboard-aac31",
@@ -89,35 +271,75 @@ let clockState = {
 };
 
 function getRemaining() {
-  const base = Math.max(0, Number(clockState.remainingMs || 0));
-  if (!clockState.running) return base;
-  return Math.max(0, base - (Date.now() - Number(clockState.startedAt)));
+  const base = Math.max(
+    0, Number(clockState.remainingMs) || 0
+  );
+
+  if (!clockState.running || clockState.startedAt == null) {
+    return base;
+  }
+
+  return Math.max(
+    0, base - (Date.now() - Number(clockState.startedAt))
+  );
 }
 
 function formatTime(ms) {
   const total = Math.ceil(ms / 1000);
+
   return Math.floor(total / 60) + ":" +
     String(total % 60).padStart(2, "0");
+}
+
+function setTeamColor(variable, color, fallback) {
+  // Accept standard six-digit hex colors only.
+  const validColor =
+    typeof color === "string" &&
+    /^#[0-9a-fA-F]{6}$/.test(color);
+
+  document.documentElement.style.setProperty(
+    variable,
+    validColor ? color : fallback
+  );
 }
 
 db.ref("scoreboard").on("value", snapshot => {
   const data = snapshot.val();
   if (!data) return;
 
-  document.getElementById("homeName").textContent = data.homeName || "HOME";
-  document.getElementById("homeScore").textContent = data.homeScore ?? 0;
-  document.getElementById("awayName").textContent = data.awayName || "AWAY";
-  document.getElementById("awayScore").textContent = data.awayScore ?? 0;
-  document.getElementById("period").textContent = data.period || "Q1";
+  document.getElementById("homeName").textContent =
+    data.homeName || "HOME";
+
+  document.getElementById("homeScore").textContent =
+    data.homeScore ?? 0;
+
+  document.getElementById("awayName").textContent =
+    data.awayName || "AWAY";
+
+  document.getElementById("awayScore").textContent =
+    data.awayScore ?? 0;
+
+  document.getElementById("period").textContent =
+    data.period || "Q1";
+
+  // Optional Firebase fields: homeColor and awayColor.
+  setTeamColor("--home-color", data.homeColor, "#006BB6");
+  setTeamColor("--away-color", data.awayColor, "#C8102E");
 
   if (data.clock && typeof data.clock === "object") {
-    clockState = data.clock;
+    clockState = {
+      remainingMs: Number(data.clock.remainingMs) || 0,
+      running: data.clock.running === true,
+      startedAt: data.clock.startedAt ?? null
+    };
   } else if (typeof data.clock === "string") {
-    // Compatibility with the old controller's "10:00" clock.
     const parts = data.clock.split(":").map(Number);
+
     if (parts.length === 2 && parts.every(Number.isFinite)) {
       clockState = {
-        remainingMs: (parts[0] * 60 + parts[1]) * 1000,
+        remainingMs: Math.max(
+          0, (parts[0] * 60 + parts[1]) * 1000
+        ),
         running: false,
         startedAt: null
       };
@@ -132,15 +354,25 @@ db.ref("scoreboard").on("value", snapshot => {
 
 function renderClock() {
   const ms = getRemaining();
-  document.getElementById("clock").textContent = formatTime(ms);
-
   const running = clockState.running && ms > 0;
+
+  document.getElementById("clock").textContent =
+    formatTime(ms);
+
   document.getElementById("clockStatus").textContent =
     running ? "LIVE" : "PAUSED";
-  document.getElementById("clock").classList.toggle("paused", !running);
+
+  document.getElementById("clockStatus").classList.toggle(
+    "live", running
+  );
+
+  document.getElementById("clock").classList.toggle(
+    "paused", !running
+  );
 }
 
 setInterval(renderClock, 50);
+renderClock();
 </script>
 </body>
 </html>
